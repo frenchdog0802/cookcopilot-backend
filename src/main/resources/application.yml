@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: Cook-Planner
+
+  # ── PostgreSQL ──
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cookplanner
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # ── Redis ──
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# ── Application Properties ──
+app:
+  jwt-secret: ${JWT_SECRET:6fa72e20f64b00b6b8c2abf50fca10f11a9e3b8e3f9e056e8e251ad26b2bca8d7a3ce9f1a1df7ab4c1f7f14b9d6d1c9f5df9e6a3c98e7c1d}
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:ddtjd5tbg}
+    api-key: ${CLOUDINARY_API_KEY:862352563776518}
+    api-secret: ${CLOUDINARY_API_SECRET:cqdZDMRF_kUoPkVKnmPUe08hYCk}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model: gpt-4o-mini
+    temperature: 0.6
+    max-tokens: 500
+  auth0:
+    domain: ${AUTH0_DOMAIN:dev-r1tfs3j17m7ipwcs.us.auth0.com}
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:}
+  cors:
+    allowed-origins: http://localhost:5173,https://icy-meadow-0cd8a0c0f.3.azurestaticapps.net
+
+server:
+  port: ${PORT:8080}

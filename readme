@@ -1,0 +1,3 @@
+start sql server
+
+pg_ctl.exe -D ..\data start
