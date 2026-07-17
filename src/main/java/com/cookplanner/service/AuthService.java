@@ -2,6 +2,7 @@ package com.cookplanner.service;
 
 import com.cookplanner.config.JwtUtil;
 import com.cookplanner.common.GlobalExceptionHandler.*;
+import com.cookplanner.dto.*;
 import com.cookplanner.entity.User;
 import com.cookplanner.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,19 +32,19 @@ public class AuthService {
 
     // ── Signup ──
 
-    public Map<String, Object> signup(String firstName, String lastName,  String email, String password) {
-        if (userRepository.existsByEmail(email)) {
+    public SignupResponse signup(SignupRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
             throw new BadRequestException("Email is taken");
         }
 
         String salt = makeSalt();
-        String hashedPassword = encryptPassword(password, salt);
+        String hashedPassword = encryptPassword(request.getPassword(), salt);
 
         User user = User.builder()
-                .firstName(firstName)
-                .lastName(lastName)
-                .name(firstName + " " + lastName)
-                .email(email)
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .name(request.getFirstName() + " " + request.getLastName())
+                .email(request.getEmail())
                 .salt(salt)
                 .hashedPassword(hashedPassword)
                 .role("user")
@@ -52,86 +53,62 @@ public class AuthService {
         user = userRepository.save(user);
 
         String token = jwtUtil.generateToken(user.getId());
-        return Map.of(
-                "token", token,
-                "user", Map.of("id", user.getId(), "name", user.getName(), "email", user.getEmail())
-        );
+        return SignupResponse.builder()
+                .token(token)
+                .user(toUserDto(user))
+                .build();
     }
 
     // ── Signin ──
 
-    public Map<String, Object> signin(String email, String password) {
-        User user = userRepository.findByEmail(email)
+    public SigninResponse signin(SigninRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("User not found"));
 
-        if (!authenticate(password, user.getSalt(), user.getHashedPassword())) {
+        if (!authenticate(request.getPassword(), user.getSalt(), user.getHashedPassword())) {
             throw new BadRequestException("Email and password don't match.");
         }
 
         String token = jwtUtil.generateToken(user.getId());
-        return Map.of(
-                "token", token,
-                "user", Map.of("id", user.getId(), "name", user.getName(), "email", user.getEmail())
-        );
+        return SigninResponse.builder()
+                .token(token)
+                .user(toUserDto(user))
+                .build();
     }
 
-    // ── Google Login ──
+    // ── Google Login (Google Identity Services access token) ──
 
-    public Map<String, Object> googleLogin(String accessToken) {
+    public GoogleLoginResponse googleLogin(GoogleLoginRequest request) {
         try {
             RestTemplate restTemplate = new RestTemplate();
 
-            // Step 1: Validate token
             @SuppressWarnings("unchecked")
             Map<String, Object> tokenInfo = restTemplate.getForObject(
-                    "https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=" + accessToken,
+                    "https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=" + request.getToken(),
                     Map.class);
 
             if (tokenInfo == null) throw new BadRequestException("Invalid Google token");
 
-            String googleId = (String) tokenInfo.get("sub");
-
-            // Check if user exists
-            Optional<User> existingUser = userRepository.findByGoogleId(googleId);
-            if (existingUser.isPresent()) {
-                User user = existingUser.get();
-                String token = jwtUtil.generateToken(user.getId());
-                return Map.of(
-                        "token", token,
-                        "message", "User authenticated via Google (existing account).",
-                        "user", Map.of("id", user.getId(), "email", user.getEmail(), "name", user.getName())
-                );
-            }
-
-            // Step 2: Get user info
             @SuppressWarnings("unchecked")
             Map<String, Object> userInfo = restTemplate.getForObject(
-                    "https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + accessToken,
+                    "https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + request.getToken(),
                     Map.class);
 
             if (userInfo == null) throw new BadRequestException("Failed to fetch Google user info");
 
-            String salt = makeSalt();
-            User newUser = User.builder()
-                    .googleId(googleId)
-                    .email((String) userInfo.get("email"))
-                    .firstName((String) userInfo.getOrDefault("given_name", "User"))
-                    .lastName((String) userInfo.getOrDefault("family_name", ""))
-                    .name((String) userInfo.getOrDefault("name", "User"))
-                    .picture((String) userInfo.get("picture"))
-                    .salt(salt)
-                    .hashedPassword(encryptPassword(UUID.randomUUID().toString(), salt))
-                    .connectAccount("Google")
-                    .role("user")
-                    .build();
+            String googleId = (String) userInfo.get("sub");
+            if (googleId == null) {
+                googleId = (String) tokenInfo.get("sub");
+            }
+            if (googleId == null) throw new BadRequestException("Invalid Google token: missing user id");
 
-            newUser = userRepository.save(newUser);
-            String token = jwtUtil.generateToken(newUser.getId());
-            return Map.of(
-                    "token", token,
-                    "message", "User successfully authenticated and registered via Google.",
-                    "user", Map.of("id", newUser.getId(), "email", newUser.getEmail(), "name", newUser.getName())
-            );
+            return findOrCreateByGoogleId(
+                    googleId,
+                    (String) userInfo.get("email"),
+                    (String) userInfo.getOrDefault("name", "User"),
+                    (String) userInfo.getOrDefault("given_name", "User"),
+                    (String) userInfo.getOrDefault("family_name", ""),
+                    (String) userInfo.get("picture"));
         } catch (BadRequestException e) {
             throw e;
         } catch (Exception e) {
@@ -140,12 +117,70 @@ public class AuthService {
         }
     }
 
+    /**
+     * Finds an existing user by Google ID or email, or creates a new one.
+     */
+    public GoogleLoginResponse findOrCreateByGoogleId(String googleId, String email,
+                                                       String name, String firstName,
+                                                       String lastName, String picture) {
+        // 1. Try finding by googleId
+        Optional<User> existingUser = userRepository.findByGoogleId(googleId);
+
+        // 2. Try linking by email if no googleId match
+        if (existingUser.isEmpty() && email != null) {
+            existingUser = userRepository.findByEmail(email);
+            if (existingUser.isPresent()) {
+                User user = existingUser.get();
+                user.setGoogleId(googleId);
+                if (picture != null && user.getPicture() == null) {
+                    user.setPicture(picture);
+                }
+                userRepository.save(user);
+            }
+        }
+
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            String token = jwtUtil.generateToken(user.getId());
+            return GoogleLoginResponse.builder()
+                    .token(token)
+                    .user(toUserDto(user))
+                    .build();
+        }
+
+        // 3. Create new user
+        String safeName = name != null ? name : (firstName != null ? firstName : "User");
+        String safeFirst = firstName != null ? firstName : safeName.split(" ")[0];
+        String safeLast = lastName != null ? lastName : "";
+
+        String salt = makeSalt();
+        User newUser = User.builder()
+                .googleId(googleId)
+                .email(email)
+                .firstName(safeFirst)
+                .lastName(safeLast)
+                .name(safeName)
+                .picture(picture)
+                .salt(salt)
+                .hashedPassword(encryptPassword(UUID.randomUUID().toString(), salt))
+                .connectAccount("Google")
+                .role("user")
+                .build();
+
+        newUser = userRepository.save(newUser);
+        String token = jwtUtil.generateToken(newUser.getId());
+        return GoogleLoginResponse.builder()
+                .token(token)
+                .user(toUserDto(newUser))
+                .build();
+    }
+
     // ── Auth0 Login ──
 
-    public Map<String, Object> auth0Login(String idToken) {
+    public Auth0LoginResponse auth0Login(Auth0LoginRequest request) {
         try {
             // Decode JWT payload
-            String[] parts = idToken.split("\\.");
+            String[] parts = request.getIdToken().split("\\.");
             if (parts.length != 3) throw new BadRequestException("Invalid JWT format");
 
             String payloadJson = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
@@ -187,11 +222,10 @@ public class AuthService {
             if (existingUser.isPresent()) {
                 User user = existingUser.get();
                 String token = jwtUtil.generateToken(user.getId());
-                return Map.of(
-                        "token", token,
-                        "message", "User authenticated via Auth0.",
-                        "user", Map.of("id", user.getId(), "email", user.getEmail(), "name", user.getName())
-                );
+                return Auth0LoginResponse.builder()
+                        .token(token)
+                        .user(toUserDto(user))
+                        .build();
             }
 
             // Create new user
@@ -215,17 +249,28 @@ public class AuthService {
 
             newUser = userRepository.save(newUser);
             String token = jwtUtil.generateToken(newUser.getId());
-            return Map.of(
-                    "token", token,
-                    "message", "User registered via Auth0.",
-                    "user", Map.of("id", newUser.getId(), "email", newUser.getEmail(), "name", newUser.getName())
-            );
+            return Auth0LoginResponse.builder()
+                    .token(token)
+                    .user(toUserDto(newUser))
+                    .build();
         } catch (BadRequestException e) {
             throw e;
         } catch (Exception e) {
             log.error("Auth0 login error", e);
             throw new BadRequestException("Authentication failed: Invalid Auth0 token.");
         }
+    }
+
+    // ── Helper: Convert User entity to UserDto ──
+
+    private UserDto toUserDto(User user) {
+        return UserDto.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .name(user.getName())
+                .build();
     }
 
     // ── Password Helpers (mirrors Node.js crypto HMAC SHA-1) ──

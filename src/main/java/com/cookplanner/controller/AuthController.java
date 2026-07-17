@@ -3,10 +3,10 @@ package com.cookplanner.controller;
 import com.cookplanner.common.ApiResponse;
 import com.cookplanner.service.AuthService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import com.cookplanner.dto.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -16,33 +16,31 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> signup(@RequestBody Map<String, String> body) {
-        Map<String, Object> data = authService.signup(
-                body.get("first_name"), body.get("last_name"),
-                body.get("email"), body.get("password"));
-        return ResponseEntity.ok(ApiResponse.success(data));
+    public ApiResponse<SignupResponse> signup(@Valid @RequestBody SignupRequest request) {
+        SignupResponse data = authService.signup(request);
+        return ApiResponse.success(data);
     }
 
     @PostMapping("/signin")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> signin(@RequestBody Map<String, String> body) {
-        Map<String, Object> data = authService.signin(body.get("email"), body.get("password"));
-        return ResponseEntity.ok(ApiResponse.success(data));
+    public ApiResponse<SigninResponse> signin(@Valid @RequestBody SigninRequest request) {
+        SigninResponse data = authService.signin(request);
+        return ApiResponse.success(data);
     }
 
     @GetMapping("/signout")
-    public ResponseEntity<ApiResponse<Map<String, String>>> signout() {
-        return ResponseEntity.ok(ApiResponse.success(Map.of("message", "signed out")));
+    public ApiResponse<SignoutResponse> signout() {
+        return ApiResponse.success(new SignoutResponse("signed out"));
     }
 
     @PostMapping("/google-login")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> googleLogin(@RequestBody Map<String, String> body) {
-        Map<String, Object> data = authService.googleLogin(body.get("token"));
-        return ResponseEntity.ok(ApiResponse.success(data));
+    public ApiResponse<GoogleLoginResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        GoogleLoginResponse data = authService.googleLogin(request);
+        return ApiResponse.success(data);
     }
 
     @PostMapping("/auth0")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> auth0Login(@RequestBody Map<String, String> body) {
-        Map<String, Object> data = authService.auth0Login(body.get("idToken"));
-        return ResponseEntity.ok(ApiResponse.success(data));
+    public ApiResponse<Auth0LoginResponse> auth0Login(@Valid @RequestBody Auth0LoginRequest request) {
+        Auth0LoginResponse data = authService.auth0Login(request);
+        return ApiResponse.success(data);
     }
 }

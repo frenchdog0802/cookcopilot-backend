@@ -17,7 +17,6 @@ public class PantryItemService {
     private final ShoppingListItemRepository shoppingListItemRepository;
     private final MealPlanRepository mealPlanRepository;
     private final RecipeIngredientRepository recipeIngredientRepository;
-    private final RedisService redisService;
 
     public List<Map<String, Object>> insertAllPantryItems(UUID userId, List<Map<String, Object>> items) {
         List<Map<String, Object>> result = new ArrayList<>();
@@ -98,8 +97,6 @@ public class PantryItemService {
             result.add(m);
         }
 
-        // Cache for 7 days
-        redisService.setCache(RedisService.pantryItemsKey(userId.toString()), result, 604800);
         return result;
     }
 

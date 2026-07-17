@@ -18,7 +18,6 @@ public class MealPlanService {
     private final IngredientRepository ingredientRepository;
     private final PantryItemRepository pantryItemRepository;
     private final ShoppingListItemRepository shoppingListItemRepository;
-    private final RedisService redisService;
 
     public List<Map<String, Object>> getAllMealPlans(UUID userId) {
         List<MealPlan> mealPlans = mealPlanRepository.findByUserId(userId);

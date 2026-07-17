@@ -2,13 +2,13 @@ package com.cookplanner.controller;
 
 import com.cookplanner.common.ApiResponse;
 import com.cookplanner.entity.Ingredient;
+import com.cookplanner.dto.*;
+import jakarta.validation.Valid;
 import com.cookplanner.service.IngredientService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -18,34 +18,60 @@ public class IngredientController {
 
     private final IngredientService ingredientService;
 
+    private IngredientDto toDto(Ingredient ingredient) {
+        return IngredientDto.builder()
+                .id(ingredient.getId())
+                .name(ingredient.getName())
+                .build();
+    }
+
+    private Ingredient toEntity(IngredientDto dto) {
+        return Ingredient.builder()
+                .id(dto.getId())
+                .name(dto.getName())
+                .build();
+    }
+
     @PostMapping("/bulk")
-    public ResponseEntity<ApiResponse<List<Ingredient>>> insertAll(@RequestBody List<Ingredient> ingredients) {
-        return ResponseEntity.ok(ApiResponse.success(ingredientService.insertAll(ingredients)));
+    public ApiResponse<BulkInsertIngredientsResponse> insertAll(@Valid @RequestBody BulkInsertIngredientsRequest request) {
+        List<Ingredient> ingredientsToInsert = request.getIngredients().stream().map(this::toEntity).toList();
+        List<IngredientDto> result = ingredientService.insertAll(ingredientsToInsert).stream().map(this::toDto).toList();
+        return ApiResponse.success(new BulkInsertIngredientsResponse(result));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Ingredient>>> getAll(@RequestParam(required = false) String query) {
-        return ResponseEntity.ok(ApiResponse.success(ingredientService.getAllIngredients(query)));
+    public ApiResponse<GetAllIngredientsResponse> getAll(@RequestParam(required = false) String query) {
+        List<IngredientDto> result = ingredientService.getAllIngredients(query).stream().map(this::toDto).toList();
+        return ApiResponse.success(new GetAllIngredientsResponse(result));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Ingredient>> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success(ingredientService.getIngredientById(id)));
+    public ApiResponse<GetIngredientByIdResponse> getById(@PathVariable UUID id) {
+        Ingredient ingredient = ingredientService.getIngredientById(id);
+        return ApiResponse.success(new GetIngredientByIdResponse(toDto(ingredient)));
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Ingredient>> create(@RequestBody Ingredient ingredient) {
-        return ResponseEntity.ok(ApiResponse.success(ingredientService.createIngredient(ingredient)));
+    public ApiResponse<CreateIngredientResponse> create(@Valid @RequestBody CreateIngredientRequest request) {
+        Ingredient ingredient = Ingredient.builder()
+                .name(request.getName())
+                .build();
+        Ingredient result = ingredientService.createIngredient(ingredient);
+        return ApiResponse.success(new CreateIngredientResponse(toDto(result)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Ingredient>> update(@PathVariable UUID id, @RequestBody Ingredient updates) {
-        return ResponseEntity.ok(ApiResponse.success(ingredientService.updateIngredient(id, updates)));
+    public ApiResponse<UpdateIngredientResponse> update(@PathVariable UUID id, @Valid @RequestBody UpdateIngredientRequest request) {
+        Ingredient updates = Ingredient.builder()
+                .name(request.getName())
+                .build();
+        Ingredient result = ingredientService.updateIngredient(id, updates);
+        return ApiResponse.success(new UpdateIngredientResponse(toDto(result)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Map<String, String>>> delete(@PathVariable UUID id) {
+    public ApiResponse<DeleteIngredientResponse> delete(@PathVariable UUID id) {
         ingredientService.deleteIngredient(id);
-        return ResponseEntity.ok(ApiResponse.success(Map.of("message", "Ingredient deleted")));
+        return ApiResponse.success(new DeleteIngredientResponse("Ingredient deleted"));
     }
 }

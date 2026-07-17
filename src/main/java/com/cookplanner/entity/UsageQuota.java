@@ -21,7 +21,7 @@ public class UsageQuota {
     private UUID userId;
 
     @Builder.Default
-    private String window = "monthly"; // monthly, daily
+    private String period_plan = "monthly"; // monthly, daily
 
     @Column(name = "period_start")
     private Long periodStart;

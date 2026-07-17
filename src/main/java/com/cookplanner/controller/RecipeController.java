@@ -2,8 +2,9 @@ package com.cookplanner.controller;
 
 import com.cookplanner.common.ApiResponse;
 import com.cookplanner.service.RecipeService;
+import com.cookplanner.dto.*;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,43 +17,59 @@ public class RecipeController {
 
     private final RecipeService recipeService;
 
+    @SuppressWarnings("unchecked")
+    private RecipeDto toDtoFromMap(Map<String, Object> map) {
+        Object idObj = map.get("id");
+        UUID id = null;
+        if (idObj instanceof UUID) id = (UUID) idObj;
+        else if (idObj != null) id = UUID.fromString(idObj.toString());
+
+        Object folderIdObj = map.get("folder_id");
+        UUID folderId = null;
+        if (folderIdObj instanceof UUID) folderId = (UUID) folderIdObj;
+        else if (folderIdObj != null) folderId = UUID.fromString(folderIdObj.toString());
+
+        return RecipeDto.builder()
+                .id(id)
+                .mealName((String) map.get("meal_name"))
+                .instructions((String) map.get("instructions"))
+                .folderId(folderId)
+                .image((Map<String, String>) map.get("image"))
+                .ingredients((List<Map<String, Object>>) map.get("ingredients"))
+                .build();
+    }
+
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAll(Authentication auth) {
+    public ApiResponse<GetAllRecipesResponse> getAll(Authentication auth) {
         UUID userId = (UUID) auth.getPrincipal();
-        return ResponseEntity.ok(ApiResponse.success(recipeService.getAllRecipes(userId)));
+        List<RecipeDto> dtos = recipeService.getAllRecipes(userId).stream().map(this::toDtoFromMap).toList();
+        return ApiResponse.success(new GetAllRecipesResponse(dtos));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success(recipeService.getRecipeById(id)));
+    public ApiResponse<GetRecipeByIdResponse> getById(@PathVariable UUID id) {
+        Map<String, Object> result = recipeService.getRecipeById(id);
+        return ApiResponse.success(new GetRecipeByIdResponse(toDtoFromMap(result)));
     }
 
     @PostMapping
-    @SuppressWarnings("unchecked")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> create(Authentication auth, @RequestBody Map<String, Object> body) {
+    public ApiResponse<CreateRecipeResponse> create(Authentication auth, @Valid @RequestBody CreateRecipeRequest request) {
         UUID userId = (UUID) auth.getPrincipal();
-        UUID folderId = body.get("folder_id") != null ? UUID.fromString(body.get("folder_id").toString()) : null;
-        Map<String, String> image = (Map<String, String>) body.get("image");
-        List<Map<String, Object>> ingredients = (List<Map<String, Object>>) body.get("ingredients");
-        return ResponseEntity.ok(ApiResponse.success(
-                recipeService.createRecipe(userId, (String) body.get("meal_name"),
-                        (String) body.get("instructions"), folderId, image, ingredients)));
+        Map<String, Object> result = recipeService.createRecipe(userId, request.getMealName(),
+                request.getInstructions(), request.getFolderId(), request.getImage(), request.getIngredients());
+        return ApiResponse.success(new CreateRecipeResponse(toDtoFromMap(result)));
     }
 
     @PutMapping("/{id}")
-    @SuppressWarnings("unchecked")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> update(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
-        UUID folderId = body.get("folder_id") != null ? UUID.fromString(body.get("folder_id").toString()) : null;
-        Map<String, String> image = (Map<String, String>) body.get("image");
-        List<Map<String, Object>> ingredients = (List<Map<String, Object>>) body.get("ingredients");
-        return ResponseEntity.ok(ApiResponse.success(
-                recipeService.updateRecipe(id, (String) body.get("meal_name"),
-                        (String) body.get("instructions"), folderId, image, ingredients)));
+    public ApiResponse<UpdateRecipeResponse> update(@PathVariable UUID id, @Valid @RequestBody UpdateRecipeRequest request) {
+        Map<String, Object> result = recipeService.updateRecipe(id, request.getMealName(),
+                request.getInstructions(), request.getFolderId(), request.getImage(), request.getIngredients());
+        return ApiResponse.success(new UpdateRecipeResponse(toDtoFromMap(result)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Map<String, String>>> delete(@PathVariable UUID id) {
+    public ApiResponse<DeleteRecipeResponse> delete(@PathVariable UUID id) {
         recipeService.deleteRecipe(id);
-        return ResponseEntity.ok(ApiResponse.success(Map.of("message", "Recipe deleted")));
+        return ApiResponse.success(new DeleteRecipeResponse("Recipe deleted"));
     }
 }

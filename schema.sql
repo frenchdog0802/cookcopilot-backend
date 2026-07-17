@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS ai_messages (
     updated_at BIGINT
 );
 
+CREATE INDEX IF NOT EXISTS idx_ai_messages_user_created
+    ON ai_messages (user_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS folders (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
@@ -195,7 +198,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 CREATE TABLE IF NOT EXISTS usage_quotas (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
-    window VARCHAR(255) DEFAULT 'monthly',
+    period_plan VARCHAR(255) DEFAULT 'monthly',
     period_start BIGINT,
     period_end BIGINT,
     recipes_created INTEGER DEFAULT 0,

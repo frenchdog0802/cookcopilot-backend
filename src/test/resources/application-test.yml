@@ -1,0 +1,52 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:cookplanner_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=KEY
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+langchain4j:
+  open-ai:
+    chat-model:
+      api-key: test-deepseek-key
+      base-url: https://api.deepseek.com
+      model-name: deepseek-v4-flash
+      temperature: 0.6
+      max-tokens: 1000
+      timeout: 30s
+    streaming-chat-model:
+      api-key: test-deepseek-key
+      base-url: https://api.deepseek.com
+      model-name: deepseek-v4-flash
+      temperature: 0.6
+      max-tokens: 1000
+      timeout: 300s
+
+app:
+  jwt-secret: test-jwt-secret-key-for-unit-tests-only
+  frontend-url: http://localhost:5173
+  cloudinary:
+    cloud-name: test
+    api-key: test
+    api-secret: test
+  llm:
+    api-key: test-deepseek-key
+    base-url: https://api.deepseek.com
+    model: deepseek-v4-flash
+    temperature: 0.6
+    max-tokens: 1000
+  auth0:
+    domain: test.auth0.com
+  stripe:
+    secret-key: sk_test
+  cors:
+    allowed-origins: http://localhost:5173
+
+server:
+  port: 0
