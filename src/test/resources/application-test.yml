@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:cookplanner_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=KEY
+    url: jdbc:h2:mem:cookcopilot_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=KEY
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -50,3 +50,10 @@ app:
 
 server:
   port: 0
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+      force-request: true
+      force-response: true

@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com</groupId>
-    <artifactId>Cook-Planner</artifactId>
+    <artifactId>Cook-Copilot</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>Cook-Planner</name>
-    <description>Cook-Planner</description>
+    <name>Cook-Copilot</name>
+    <description>Cook-Copilot</description>
     <url/>
     <licenses>
         <license/>
@@ -28,6 +28,10 @@
     </scm>
     <properties>
         <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- Force UTF-8 for tests and spring-boot:run (MS950 Windows otherwise garbles LLM SSE) -->
+        <cookcopilot.jvm.encoding.args>-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</cookcopilot.jvm.encoding.args>
     </properties>
     <dependencies>
         <!-- Spring Boot Starters -->
@@ -178,12 +182,21 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <!-- LangChain4j SSE uses InputStreamReader without charset; force UTF-8 on MS950 Windows -->
+                    <jvmArguments>${cookcopilot.jvm.encoding.args}</jvmArguments>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>${cookcopilot.jvm.encoding.args}</argLine>
                 </configuration>
             </plugin>
         </plugins>

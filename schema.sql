@@ -17,6 +17,36 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at BIGINT
 );
 
+CREATE TABLE IF NOT EXISTS user_preferences (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL UNIQUE,
+    household_notes TEXT,
+    measurement_unit VARCHAR(255) DEFAULT 'metric',
+    notes TEXT,
+    created_at BIGINT,
+    updated_at BIGINT
+);
+
+CREATE TABLE IF NOT EXISTS user_preference_allergies (
+    preference_id UUID NOT NULL,
+    item VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS user_preference_dislikes (
+    preference_id UUID NOT NULL,
+    item VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS user_preference_likes (
+    preference_id UUID NOT NULL,
+    item VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS user_preference_dietary_restrictions (
+    preference_id UUID NOT NULL,
+    item VARCHAR(255)
+);
+
 CREATE TABLE IF NOT EXISTS ai_messages (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
@@ -56,6 +86,9 @@ CREATE TABLE IF NOT EXISTS ingredients (
     id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     default_unit VARCHAR(255),
+    unit_kind VARCHAR(32),
+    base_unit VARCHAR(32),
+    default_display_unit VARCHAR(32),
     image_url VARCHAR(255),
     created_at BIGINT,
     updated_at BIGINT
@@ -156,6 +189,15 @@ CREATE TABLE IF NOT EXISTS recipe_ingredients (
     CONSTRAINT uk_recipe_ingredient UNIQUE (recipe_id, ingredient_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_meal_plans_user_date
+    ON meal_plans (user_id, serving_date);
+
+CREATE INDEX IF NOT EXISTS idx_recipes_user
+    ON recipes (user_id);
+
+CREATE INDEX IF NOT EXISTS idx_recipe_ingredients_recipe
+    ON recipe_ingredients (recipe_id);
+
 CREATE TABLE IF NOT EXISTS shopping_list_items (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
@@ -216,12 +258,12 @@ INSERT INTO users (id, first_name, last_name, name, email, hashed_password, role
 ('e1f81c9a-4c22-4d29-a1fc-22d7a2cd9121', 'John', 'Doe', 'John Doe', 'john.doe@example.com', 'hashed_pw_mock', 'user', 1700000000, 1700000000);
 
 -- Ingredients Mock Data
-INSERT INTO ingredients (id, name, default_unit, created_at, updated_at) VALUES
-('d18305f8-d450-4ff6-98a2-cbe8ddbd1910', 'Tomato', 'pcs', 1700000000, 1700000000),
-('e98b7e8d-4a11-4f9e-bbb8-45be5a210515', 'Pasta', 'g', 1700000000, 1700000000),
-('71d2b85e-bbd7-40af-b9ae-c692afc83c48', 'Garlic', 'clove', 1700000000, 1700000000),
-('3a551de1-9d29-4f7f-a6f6-4bb2b291a1df', 'Chicken Breast', 'g', 1700000000, 1700000000),
-('c4c2a1b1-6b2c-47b2-bcc0-18e3c54afbef', 'Olive Oil', 'ml', 1700000000, 1700000000);
+INSERT INTO ingredients (id, name, default_unit, unit_kind, base_unit, default_display_unit, created_at, updated_at) VALUES
+('d18305f8-d450-4ff6-98a2-cbe8ddbd1910', 'Tomato', 'pcs', 'count', 'pcs', 'pcs', 1700000000, 1700000000),
+('e98b7e8d-4a11-4f9e-bbb8-45be5a210515', 'Pasta', 'g', 'weight', 'g', 'g', 1700000000, 1700000000),
+('71d2b85e-bbd7-40af-b9ae-c692afc83c48', 'Garlic', 'clove', 'count', 'clove', 'clove', 1700000000, 1700000000),
+('3a551de1-9d29-4f7f-a6f6-4bb2b291a1df', 'Chicken Breast', 'g', 'weight', 'g', 'g', 1700000000, 1700000000),
+('c4c2a1b1-6b2c-47b2-bcc0-18e3c54afbef', 'Olive Oil', 'ml', 'volume', 'ml', 'tbsp', 1700000000, 1700000000);
 
 -- Recipes Mock Data
 INSERT INTO recipes (id, user_id, meal_name, description, instructions, created_at, updated_at) VALUES
