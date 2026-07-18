@@ -37,10 +37,4 @@ public class AuthController {
         GoogleLoginResponse data = authService.googleLogin(request);
         return ApiResponse.success(data);
     }
-
-    @PostMapping("/auth0")
-    public ApiResponse<Auth0LoginResponse> auth0Login(@Valid @RequestBody Auth0LoginRequest request) {
-        Auth0LoginResponse data = authService.auth0Login(request);
-        return ApiResponse.success(data);
-    }
 }

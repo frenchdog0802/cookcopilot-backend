@@ -37,8 +37,6 @@ write_dto('SigninResponse', ['String token', 'UserDto user'])
 write_dto('SignoutResponse', ['String message'])
 write_dto('GoogleLoginRequest', ['@NotBlank String token'])
 write_dto('GoogleLoginResponse', ['String token', 'UserDto user'])
-write_dto('Auth0LoginRequest', ['@NotBlank String idToken'])
-write_dto('Auth0LoginResponse', ['String token', 'UserDto user'])
 
 # Chat
 write_dto('ChatSendRequest', ['@NotBlank String message', 'Map<String, Object> recipeContext'])

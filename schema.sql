@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(255) NOT NULL DEFAULT 'user',
     connect_account VARCHAR(255),
     google_id VARCHAR(255),
-    auth0_id VARCHAR(255),
     picture VARCHAR(255),
     created_at BIGINT,
     updated_at BIGINT

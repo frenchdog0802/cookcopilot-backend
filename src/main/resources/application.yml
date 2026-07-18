@@ -37,9 +37,6 @@ app:
     temperature: ${LLM_TEMPERATURE:0.4}
     # Tool-call JSON needs headroom; truncation causes JsonEOFException mid-args
     max-tokens: ${LLM_MAX_TOKENS:4096}
-  auth0:
-    # Optional — leave empty if not using Auth0 login
-    domain: ${AUTH0_DOMAIN:}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:}
   cors:

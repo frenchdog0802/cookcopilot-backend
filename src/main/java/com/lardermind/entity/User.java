@@ -44,9 +44,6 @@ public class User {
     @Column(name = "google_id")
     private String googleId;
 
-    @Column(name = "auth0_id")
-    private String auth0Id;
-
     private String picture;
 
     @Column(name = "created_at")

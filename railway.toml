@@ -3,7 +3,7 @@
 #
 # Required env: DB_*, JWT_SECRET, DEEPSEEK_API_KEY, CLOUDINARY_*,
 #               CORS_ALLOWED_ORIGINS (include frontend Railway URL), FRONTEND_URL
-# Optional: AUTH0_DOMAIN, DB_SSL_MODE=require (default), UNSPLASH_ACCESS_KEY,
+# Optional: DB_SSL_MODE=require (default), UNSPLASH_ACCESS_KEY,
 #           STRIPE_SECRET_KEY, JAVA_OPTS (Dockerfile default MaxRAMPercentage=65)
 # PORT is provided by Railway automatically.
 # Recommend memory: ≥512MB (768MB–1GB safer for AI chat).

@@ -41,8 +41,6 @@ app:
     model: deepseek-v4-flash
     temperature: 0.6
     max-tokens: 1000
-  auth0:
-    domain: test.auth0.com
   stripe:
     secret-key: sk_test
   cors:
