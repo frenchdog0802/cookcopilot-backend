@@ -13,16 +13,16 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfig {
 
     @Bean
-    public OpenAPI CookCopilotOpenAPI() {
+    public OpenAPI larderMindOpenAPI() {
         final String securitySchemeName = "Bearer Auth";
 
         return new OpenAPI()
                 .info(new Info()
-                        .title("Cook-Copilot API")
-                        .description("REST API documentation for the Cook-Copilot backend")
+                        .title("LarderMind API")
+                        .description("REST API documentation for the LarderMind backend")
                         .version("1.0.0")
                         .contact(new Contact()
-                                .name("Cook-Copilot Team")))
+                                .name("LarderMind Team")))
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .components(new Components()
                         .addSecuritySchemes(securitySchemeName,

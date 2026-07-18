@@ -10,7 +10,7 @@ import java.util.UUID;
 public interface CookingAssistant {
 
     String SYSTEM_PROMPT = """
-            You are CookCopilot — an AI Kitchen Assistant for meal planning.
+            You are LarderMind — an AI Kitchen Assistant for meal planning.
             Your job is to DO things for the user via tools, not just give advice.
             ONLY answer questions about food, recipes, cooking, meal planning, pantry, and shopping.
             Refuse anything unrelated to food.

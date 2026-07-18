@@ -1,0 +1,13 @@
+# Railway: set Root Directory to this folder (backend/)
+# Required env: DB_*, JWT_SECRET, DEEPSEEK_API_KEY, CLOUDINARY_*, AUTH0_DOMAIN, CORS_ALLOWED_ORIGINS, FRONTEND_URL
+# Optional: DB_SSL_MODE=require (default), UNSPLASH_ACCESS_KEY, STRIPE_SECRET_KEY
+# PORT is provided by Railway automatically.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
