@@ -1,0 +1,15 @@
+package com.lardermind.dto;
+
+import lombok.*;
+import java.util.*;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class FolderDto {
+    private UUID id;
+    private String name;
+    private String color;
+    private String icon;
+}

@@ -1,7 +1,12 @@
-# Railway: set Root Directory to this folder (backend/)
-# Required env: DB_*, JWT_SECRET, DEEPSEEK_API_KEY, CLOUDINARY_*, AUTH0_DOMAIN, CORS_ALLOWED_ORIGINS, FRONTEND_URL
-# Optional: DB_SSL_MODE=require (default), UNSPLASH_ACCESS_KEY, STRIPE_SECRET_KEY
+# Railway: deploy THIS folder only (Root Directory = backend/)
+# Separate from frontend — do not use root docker-compose on Railway.
+#
+# Required env: DB_*, JWT_SECRET, DEEPSEEK_API_KEY, CLOUDINARY_*, AUTH0_DOMAIN,
+#               CORS_ALLOWED_ORIGINS (include frontend Railway URL), FRONTEND_URL
+# Optional: DB_SSL_MODE=require (default), UNSPLASH_ACCESS_KEY, STRIPE_SECRET_KEY,
+#           JAVA_OPTS (defaults in Dockerfile use MaxRAMPercentage=65)
 # PORT is provided by Railway automatically.
+# Recommend memory: ≥512MB (768MB–1GB safer for AI chat).
 
 [build]
 builder = "DOCKERFILE"

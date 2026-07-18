@@ -14,7 +14,9 @@ RUN ./mvnw -B -DskipTests package \
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-ENV JAVA_OPTS="-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8"
+# Container-aware heap: use ~65% of cgroup memory (leaves room for metaspace/native).
+# Override on Railway via service variable JAVA_OPTS if needed, e.g. "-Xms128m -Xmx384m ...".
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=65.0 -XX:InitialRAMPercentage=20.0 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8"
 ENV PORT=8080
 
 COPY --from=build /app/app.jar ./app.jar

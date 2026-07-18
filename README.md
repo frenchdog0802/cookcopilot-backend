@@ -1,4 +1,4 @@
-# Cook-Copilot Backend
+# LarderMind Backend
 
 ## Prerequisites
 
@@ -34,7 +34,7 @@ mvn spring-boot:run
 ### Option 3: Build JAR and run
 ```bash
 ./mvnw clean package -DskipTests
-java -jar target/Cook-Copilot-0.0.1-SNAPSHOT.jar
+java -jar target/LarderMind-0.0.1-SNAPSHOT.jar
 ```
 
 > **Note:** Spring Boot does not load `.env` files natively. Either:
