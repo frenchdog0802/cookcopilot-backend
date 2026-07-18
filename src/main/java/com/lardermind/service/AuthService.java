@@ -178,6 +178,9 @@ public class AuthService {
     // ── Auth0 Login ──
 
     public Auth0LoginResponse auth0Login(Auth0LoginRequest request) {
+        if (auth0Domain == null || auth0Domain.isBlank()) {
+            throw new BadRequestException("Auth0 is not configured (AUTH0_DOMAIN).");
+        }
         try {
             // Decode JWT payload
             String[] parts = request.getIdToken().split("\\.");

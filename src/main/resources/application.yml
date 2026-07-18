@@ -38,7 +38,8 @@ app:
     # Tool-call JSON needs headroom; truncation causes JsonEOFException mid-args
     max-tokens: ${LLM_MAX_TOKENS:4096}
   auth0:
-    domain: ${AUTH0_DOMAIN}
+    # Optional — leave empty if not using Auth0 login
+    domain: ${AUTH0_DOMAIN:}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:}
   cors:
