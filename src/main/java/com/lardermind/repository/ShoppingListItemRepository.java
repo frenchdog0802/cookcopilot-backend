@@ -13,5 +13,6 @@ public interface ShoppingListItemRepository extends JpaRepository<ShoppingListIt
     List<ShoppingListItem> findByUserId(UUID userId);
     List<ShoppingListItem> findByUserIdOrderByCreatedAtDesc(UUID userId);
     Optional<ShoppingListItem> findByUserIdAndIngredientIdAndChecked(UUID userId, UUID ingredientId, Boolean checked);
+    List<ShoppingListItem> findAllByUserIdAndIngredientIdAndChecked(UUID userId, UUID ingredientId, Boolean checked);
     long countByIngredientId(UUID ingredientId);
 }

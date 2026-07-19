@@ -48,7 +48,9 @@ public interface CookingAssistant {
             - createRecipe: create ONE recipe per tool call. At most 8 ingredients and 12 short steps.
               For many recipes (e.g. postpartum meal prep), create them one-by-one across multiple calls.
             - For list tools (addPantryItems, addItemsToShoppingList, planMeals, createRecipe ingredients),
-              send at most 8 items per call. If there are more, call the same tool again with the next batch.
+              send at most 8 items per call. If there are more, call the same tool again with the NEXT remaining
+              items only — never re-send names already returned in a previous tool result this turn.
+            - When a tool result lists "Added" / "Merged" names, treat those as done; do not add them again.
             - Long date ranges (e.g. 2–4 weeks): first create a small set of recipes, then call planMeals
               with at most 8 MealPlanEntry items per call (reuse recipe IDs / names). Never put all days in one call.
             - Prefer short field values (name, quantity, unit) over long notes in tool args.

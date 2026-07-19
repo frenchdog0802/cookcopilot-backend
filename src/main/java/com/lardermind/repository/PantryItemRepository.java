@@ -12,5 +12,6 @@ import java.util.UUID;
 public interface PantryItemRepository extends JpaRepository<PantryItem, UUID> {
     List<PantryItem> findByUserId(UUID userId);
     Optional<PantryItem> findByUserIdAndIngredientId(UUID userId, UUID ingredientId);
+    List<PantryItem> findAllByUserIdAndIngredientId(UUID userId, UUID ingredientId);
     long countByIngredientId(UUID ingredientId);
 }

@@ -37,7 +37,7 @@ public class ChatHistoryService {
     }
 
     private List<AIMessage> loadRowsDescending(UUID userId, int limit) {
-        List<AIMessage> descending = limit > ChatLimits.AI_CONTEXT_MESSAGE_LIMIT
+        List<AIMessage> descending = limit > ChatLimits.AI_CONTEXT_SEED_LIMIT
                 ? aiMessageRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId)
                 : aiMessageRepository.findTop20ByUserIdOrderByCreatedAtDesc(userId);
         if (descending.isEmpty()) {
@@ -45,6 +45,9 @@ public class ChatHistoryService {
         }
         List<AIMessage> ascending = new ArrayList<>(descending);
         Collections.reverse(ascending);
+        if (ascending.size() > limit) {
+            ascending = new ArrayList<>(ascending.subList(ascending.size() - limit, ascending.size()));
+        }
         return ascending;
     }
 

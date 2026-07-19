@@ -20,8 +20,28 @@ public class ShoppingListService {
 
     public List<Map<String, Object>> insertAllShoppingListItems(UUID userId, List<Map<String, Object>> items) {
         List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Map<String, Object>> byName = new LinkedHashMap<>();
         for (Map<String, Object> item : items) {
-            result.add(Map.of("id", createShoppingListItem(userId, item).get("id")));
+            if (item == null) {
+                continue;
+            }
+            String rawName = item.get("name") != null ? item.get("name").toString().trim() : "";
+            String key = rawName.toLowerCase(Locale.ROOT);
+            if (key.isEmpty() && item.get("ingredient_id") != null) {
+                key = "id:" + item.get("ingredient_id");
+            }
+            if (key.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> existing = byName.get(key);
+            if (existing == null) {
+                byName.put(key, new LinkedHashMap<>(item));
+            } else {
+                existing.put("quantity", toDouble(existing.get("quantity")) + toDouble(item.get("quantity")));
+            }
+        }
+        for (Map<String, Object> item : byName.values()) {
+            result.add(createShoppingListItem(userId, item));
         }
         return result;
     }
@@ -32,22 +52,46 @@ public class ShoppingListService {
         String inputUnit = item.get("unit") != null ? item.get("unit").toString() : baseUnit;
         double baseQty = UnitConverter.toIngredientBase(ing, toDouble(item.get("quantity")), inputUnit);
 
-        pantryItemRepository.findByUserIdAndIngredientId(userId, ing.getId())
-                .orElseGet(() -> pantryItemRepository.save(PantryItem.builder()
-                        .userId(userId)
-                        .ingredientId(ing.getId())
-                        .quantity(0.0)
-                        .unit(baseUnit)
-                        .build()));
+        List<PantryItem> pantryRows = pantryItemRepository.findAllByUserIdAndIngredientId(userId, ing.getId());
+        if (pantryRows.isEmpty()) {
+            pantryItemRepository.save(PantryItem.builder()
+                    .userId(userId)
+                    .ingredientId(ing.getId())
+                    .quantity(0.0)
+                    .unit(baseUnit)
+                    .build());
+        }
 
-        ShoppingListItem sli = ShoppingListItem.builder()
-                .userId(userId)
-                .ingredientId(ing.getId())
-                .quantity(baseQty)
-                .unit(baseUnit)
-                .checked(item.get("checked") != null ? (Boolean) item.get("checked") : false)
-                .build();
-        shoppingListItemRepository.save(sli);
+        List<ShoppingListItem> existingUnchecked =
+                shoppingListItemRepository.findAllByUserIdAndIngredientIdAndChecked(userId, ing.getId(), false);
+        ShoppingListItem sli;
+        boolean merged = false;
+        if (!existingUnchecked.isEmpty()) {
+            sli = existingUnchecked.get(0);
+            double previous = sli.getQuantity() != null ? sli.getQuantity() : 0;
+            sli.setQuantity(previous + baseQty);
+            sli.setUnit(baseUnit);
+            shoppingListItemRepository.save(sli);
+            for (int i = 1; i < existingUnchecked.size(); i++) {
+                ShoppingListItem dup = existingUnchecked.get(i);
+                sli.setQuantity((sli.getQuantity() != null ? sli.getQuantity() : 0)
+                        + (dup.getQuantity() != null ? dup.getQuantity() : 0));
+                shoppingListItemRepository.deleteById(dup.getId());
+            }
+            if (existingUnchecked.size() > 1) {
+                shoppingListItemRepository.save(sli);
+            }
+            merged = true;
+        } else {
+            sli = ShoppingListItem.builder()
+                    .userId(userId)
+                    .ingredientId(ing.getId())
+                    .quantity(baseQty)
+                    .unit(baseUnit)
+                    .checked(item.get("checked") != null ? (Boolean) item.get("checked") : false)
+                    .build();
+            shoppingListItemRepository.save(sli);
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", sli.getId());
@@ -56,6 +100,7 @@ public class ShoppingListService {
         result.put("checked", sli.getChecked());
         result.put("name", ing.getName());
         result.put("ingredient_id", ing.getId());
+        result.put("merged", merged);
         result.put("unit_kind", UnitConverter.resolveKind(ing).toApiValue());
         result.put("base_unit", baseUnit);
         result.put("default_display_unit", UnitConverter.resolveDisplayUnit(ing));
@@ -137,7 +182,9 @@ public class ShoppingListService {
         double addQty = shoppingItem.getQuantity() != null ? shoppingItem.getQuantity() : 0;
 
         Optional<PantryItem> existing = pantryItemRepository
-                .findByUserIdAndIngredientId(shoppingItem.getUserId(), shoppingItem.getIngredientId());
+                .findAllByUserIdAndIngredientId(shoppingItem.getUserId(), shoppingItem.getIngredientId())
+                .stream()
+                .findFirst();
 
         double previousQty;
         double newQty;
@@ -191,7 +238,9 @@ public class ShoppingListService {
 
     private void handleUncheckItem(ShoppingListItem shoppingItem, Ingredient ing, Map<String, Object> resultItem) {
         Optional<PantryItem> existing = pantryItemRepository
-                .findByUserIdAndIngredientId(shoppingItem.getUserId(), shoppingItem.getIngredientId());
+                .findAllByUserIdAndIngredientId(shoppingItem.getUserId(), shoppingItem.getIngredientId())
+                .stream()
+                .findFirst();
 
         if (existing.isEmpty()) return;
 
@@ -238,7 +287,7 @@ public class ShoppingListService {
         String name = (String) item.get("name");
         if (name == null) throw new BadRequestException("Missing 'name' field when ingredient_id is not provided");
 
-        return ingredientRepository.findByName(name)
+        return ingredientRepository.findByNameIgnoreCase(name)
                 .orElseGet(() -> {
                     Ingredient created = UnitConverter.inferAndBuild(name, (String) item.getOrDefault("unit", ""));
                     UnitConverter.applyDefaults(created);
@@ -248,7 +297,13 @@ public class ShoppingListService {
 
     private Double toDouble(Object val) {
         if (val instanceof Number) return ((Number) val).doubleValue();
-        if (val instanceof String) return Double.parseDouble((String) val);
+        if (val instanceof String) {
+            try {
+                return Double.parseDouble((String) val);
+            } catch (NumberFormatException ex) {
+                return 0.0;
+            }
+        }
         return 0.0;
     }
 

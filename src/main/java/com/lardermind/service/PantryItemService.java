@@ -23,7 +23,28 @@ public class PantryItemService {
 
     public List<Map<String, Object>> insertAllPantryItems(UUID userId, List<Map<String, Object>> items) {
         List<Map<String, Object>> result = new ArrayList<>();
+        // Merge same-name rows within one batch before upserting.
+        Map<String, Map<String, Object>> byName = new LinkedHashMap<>();
         for (Map<String, Object> item : items) {
+            if (item == null) {
+                continue;
+            }
+            String rawName = item.get("name") != null ? item.get("name").toString().trim() : "";
+            String key = rawName.toLowerCase(Locale.ROOT);
+            if (key.isEmpty() && item.get("ingredient_id") != null) {
+                key = "id:" + item.get("ingredient_id");
+            }
+            if (key.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> existing = byName.get(key);
+            if (existing == null) {
+                byName.put(key, new LinkedHashMap<>(item));
+            } else {
+                existing.put("quantity", toDouble(existing.get("quantity")) + toDouble(item.get("quantity")));
+            }
+        }
+        for (Map<String, Object> item : byName.values()) {
             result.add(createPantryItem(userId, item));
         }
         return result;
@@ -35,14 +56,51 @@ public class PantryItemService {
         String inputUnit = item.get("unit") != null ? item.get("unit").toString() : baseUnit;
         double baseQty = UnitConverter.toIngredientBase(ing, toDouble(item.get("quantity")), inputUnit);
 
-        PantryItem pi = PantryItem.builder()
-                .userId(userId)
-                .ingredientId(ing.getId())
-                .quantity(baseQty)
-                .unit(baseUnit)
-                .notes((String) item.getOrDefault("notes", ""))
-                .build();
-        pantryItemRepository.save(pi);
+        List<PantryItem> existingRows = pantryItemRepository.findAllByUserIdAndIngredientId(userId, ing.getId());
+        PantryItem pi;
+        boolean merged = false;
+        if (!existingRows.isEmpty()) {
+            pi = existingRows.get(0);
+            double previous = UnitConverter.toIngredientBaseLenient(
+                    ing,
+                    pi.getQuantity() != null ? pi.getQuantity() : 0,
+                    pi.getUnit() != null && !pi.getUnit().isBlank() ? pi.getUnit() : baseUnit);
+            pi.setQuantity(previous + baseQty);
+            pi.setUnit(baseUnit);
+            if (item.get("notes") != null && !item.get("notes").toString().isBlank()) {
+                String note = item.get("notes").toString();
+                String current = pi.getNotes() != null ? pi.getNotes() : "";
+                if (current.isBlank()) {
+                    pi.setNotes(note);
+                } else if (!current.contains(note)) {
+                    pi.setNotes(current + "; " + note);
+                }
+            }
+            pantryItemRepository.save(pi);
+            // Collapse any pre-existing duplicate rows for this ingredient.
+            for (int i = 1; i < existingRows.size(); i++) {
+                PantryItem dup = existingRows.get(i);
+                double dupQty = UnitConverter.toIngredientBaseLenient(
+                        ing,
+                        dup.getQuantity() != null ? dup.getQuantity() : 0,
+                        dup.getUnit() != null && !dup.getUnit().isBlank() ? dup.getUnit() : baseUnit);
+                pi.setQuantity((pi.getQuantity() != null ? pi.getQuantity() : 0) + dupQty);
+                pantryItemRepository.deleteById(dup.getId());
+            }
+            if (existingRows.size() > 1) {
+                pantryItemRepository.save(pi);
+            }
+            merged = true;
+        } else {
+            pi = PantryItem.builder()
+                    .userId(userId)
+                    .ingredientId(ing.getId())
+                    .quantity(baseQty)
+                    .unit(baseUnit)
+                    .notes((String) item.getOrDefault("notes", ""))
+                    .build();
+            pantryItemRepository.save(pi);
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", pi.getId());
@@ -51,6 +109,7 @@ public class PantryItemService {
         result.put("notes", pi.getNotes());
         result.put("name", ing.getName());
         result.put("ingredient_id", ing.getId());
+        result.put("merged", merged);
         result.put("unit_kind", UnitConverter.resolveKind(ing).toApiValue());
         result.put("base_unit", baseUnit);
         result.put("default_display_unit", UnitConverter.resolveDisplayUnit(ing));
@@ -198,7 +257,7 @@ public class PantryItemService {
         String name = (String) item.get("name");
         if (name == null) throw new BadRequestException("Missing 'name' field when ingredient_id is not provided");
 
-        return ingredientRepository.findByName(name)
+        return ingredientRepository.findByNameIgnoreCase(name)
                 .orElseGet(() -> {
                     Ingredient created = UnitConverter.inferAndBuild(name, (String) item.getOrDefault("unit", ""));
                     UnitConverter.applyDefaults(created);

@@ -485,7 +485,6 @@ public class CookingTools {
         }
 
         List<Map<String, Object>> payload = new ArrayList<>();
-        List<Map<String, Object>> responseItems = new ArrayList<>();
 
         for (PantryItemInput item : items) {
             if (item == null || item.name() == null || item.name().isBlank()) {
@@ -497,24 +496,31 @@ public class CookingTools {
             entry.put("unit", item.unit() != null ? item.unit() : "");
             entry.put("notes", item.notes() != null ? item.notes() : "");
             payload.add(entry);
-            responseItems.add(Map.of(
-                    "name", item.name(),
-                    "quantity", entry.get("quantity"),
-                    "unit", entry.get("unit")));
         }
 
         if (payload.isEmpty()) {
             return "No items provided.";
         }
 
-        pantryItemService.insertAllPantryItems(userId, payload);
+        List<Map<String, Object>> saved = pantryItemService.insertAllPantryItems(userId, payload);
+        List<String> addedNames = new ArrayList<>();
+        List<String> mergedNames = new ArrayList<>();
+        for (Map<String, Object> row : saved) {
+            String name = row.get("name") != null ? row.get("name").toString() : "item";
+            if (Boolean.TRUE.equals(row.get("merged"))) {
+                mergedNames.add(name);
+            } else {
+                addedNames.add(name);
+            }
+        }
 
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("itemsAdded", responseItems.size());
-        data.put("items", responseItems);
-        data.put("message", "Added " + responseItems.size() + " item(s) to pantry.");
+        data.put("itemsAdded", saved.size());
+        data.put("items", saved);
+        String message = formatAddResult("pantry", addedNames, mergedNames);
+        data.put("message", message);
         toolResultCollector.addResult(userId, "addPantryItems", data);
-        return data.get("message").toString();
+        return message;
     }
 
     @Tool("Update a pantry item's quantity, unit, or notes")
@@ -639,7 +645,6 @@ public class CookingTools {
         }
 
         List<Map<String, Object>> payload = new ArrayList<>();
-        List<Map<String, Object>> responseItems = new ArrayList<>();
 
         for (ShoppingItemInput item : items) {
             if (item == null || item.name() == null || item.name().isBlank()) {
@@ -650,20 +655,31 @@ public class CookingTools {
             entry.put("quantity", item.quantity());
             entry.put("unit", item.unit() != null ? item.unit() : "");
             payload.add(entry);
-            responseItems.add(entry);
         }
 
         if (payload.isEmpty()) {
             return "No items provided.";
         }
 
-        shoppingListService.insertAllShoppingListItems(userId, payload);
+        List<Map<String, Object>> saved = shoppingListService.insertAllShoppingListItems(userId, payload);
+        List<String> addedNames = new ArrayList<>();
+        List<String> mergedNames = new ArrayList<>();
+        for (Map<String, Object> row : saved) {
+            String name = row.get("name") != null ? row.get("name").toString() : "item";
+            if (Boolean.TRUE.equals(row.get("merged"))) {
+                mergedNames.add(name);
+            } else {
+                addedNames.add(name);
+            }
+        }
 
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("itemsAdded", responseItems.size());
-        data.put("items", responseItems);
+        data.put("itemsAdded", saved.size());
+        data.put("items", saved);
+        String message = formatAddResult("shopping list", addedNames, mergedNames);
+        data.put("message", message);
         toolResultCollector.addResult(userId, "addItemsToShoppingList", data);
-        return "Added " + responseItems.size() + " items to your shopping list.";
+        return message;
     }
 
     // ── Suggestions ──
@@ -970,6 +986,20 @@ public class CookingTools {
             }
         }
         return 0.0;
+    }
+
+    private String formatAddResult(String destination, List<String> addedNames, List<String> mergedNames) {
+        List<String> parts = new ArrayList<>();
+        if (!addedNames.isEmpty()) {
+            parts.add("Added to " + destination + ": " + String.join(", ", addedNames));
+        }
+        if (!mergedNames.isEmpty()) {
+            parts.add("Merged into existing (qty increased): " + String.join(", ", mergedNames));
+        }
+        if (parts.isEmpty()) {
+            return "No items provided.";
+        }
+        return String.join(". ", parts) + ".";
     }
 
     private String stringValue(Object value) {

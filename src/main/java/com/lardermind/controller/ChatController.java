@@ -66,10 +66,13 @@ public class ChatController {
             "I couldn't finish that action (incomplete tool data). Please try again with fewer recipes or meals at once — for example create one recipe per request, then schedule meals in batches of 8.";
     private static final String TOOL_STATE_ERROR_MESSAGE =
             "That request got interrupted mid-action. Please try again (or start a new chat if it keeps failing).";
+    private static final String BUSY_ERROR_MESSAGE =
+            "Still working on your previous request. Please wait a moment, then try again.";
 
     private final CookingAssistant cookingAssistant;
     private final ChatHistoryService chatHistoryService;
     private final ChatMemorySeeder chatMemorySeeder;
+    private final ChatSessionGuard chatSessionGuard;
     private final UserContext userContext;
     private final ToolResultCollector toolResultCollector;
 
@@ -83,6 +86,10 @@ public class ChatController {
             if (lower.contains(pattern)) {
                 return ApiResponse.success(new ChatSendResponse("error", GUARD_MESSAGE, Map.of()));
             }
+        }
+
+        if (!chatSessionGuard.tryAcquire(userId)) {
+            return ApiResponse.success(new ChatSendResponse("error", BUSY_ERROR_MESSAGE, Map.of()));
         }
 
         userContext.setUserId(userId);
@@ -108,6 +115,7 @@ public class ChatController {
         } finally {
             toolResultCollector.end(userId);
             userContext.clear();
+            chatSessionGuard.release(userId);
         }
     }
 
@@ -126,13 +134,19 @@ public class ChatController {
             }
         }
 
+        if (!chatSessionGuard.tryAcquire(userId)) {
+            sendDoneEvent(emitter, streamClosed, new ChatSendResponse("error", BUSY_ERROR_MESSAGE, Map.of()));
+            return emitter;
+        }
+
         userContext.setUserId(userId);
         toolResultCollector.begin(userId);
         String enrichedMessage = enrichMessage(userMessage, request.getRecipeContext());
         chatHistoryService.saveUserMessage(userId, userMessage);
 
         try {
-            chatMemorySeeder.seedFromDatabase(userId);
+            // Exclude the row just saved so LangChain4j can add the enriched user message once.
+            chatMemorySeeder.seedFromDatabase(userId, true);
             StringBuilder fullText = new StringBuilder();
             TokenStream tokenStream = cookingAssistant.streamChat(userId, enrichedMessage);
             RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
@@ -161,6 +175,7 @@ public class ChatController {
             chatMemorySeeder.clearMemory(userId);
             toolResultCollector.end(userId);
             userContext.clear();
+            chatSessionGuard.release(userId);
             sendErrorEvent(emitter, streamClosed, userFacingError(ex));
         }
 
@@ -171,6 +186,7 @@ public class ChatController {
             chatMemorySeeder.clearMemory(userId);
             toolResultCollector.end(userId);
             userContext.clear();
+            chatSessionGuard.release(userId);
             try {
                 synchronized (emitter) {
                     emitter.send(SseEmitter.event().name("error")
@@ -189,6 +205,7 @@ public class ChatController {
             chatMemorySeeder.clearMemory(userId);
             toolResultCollector.end(userId);
             userContext.clear();
+            chatSessionGuard.release(userId);
             if (!isEmitterClosed(error)) {
                 log.warn("SSE connection error for user {}", userId, error);
             }
@@ -259,6 +276,7 @@ public class ChatController {
         } finally {
             toolResultCollector.end(userId);
             userContext.clear();
+            chatSessionGuard.release(userId);
         }
     }
 
@@ -273,6 +291,7 @@ public class ChatController {
         if (isEmitterClosed(error)) {
             toolResultCollector.end(userId);
             userContext.clear();
+            chatSessionGuard.release(userId);
             quietlyComplete(emitter);
             return;
         }
@@ -295,6 +314,7 @@ public class ChatController {
         } finally {
             toolResultCollector.end(userId);
             userContext.clear();
+            chatSessionGuard.release(userId);
         }
     }
 

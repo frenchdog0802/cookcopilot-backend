@@ -42,11 +42,11 @@ class ChatHistoryServiceTest {
         }
         when(aiMessageRepository.findTop20ByUserIdOrderByCreatedAtDesc(userId)).thenReturn(descending);
 
-        List<ChatMessage> messages = chatHistoryService.loadRecent(userId, ChatLimits.AI_CONTEXT_MESSAGE_LIMIT);
+        List<ChatMessage> messages = chatHistoryService.loadRecent(userId, ChatLimits.AI_CONTEXT_SEED_LIMIT);
 
-        assertEquals(20, messages.size());
+        assertEquals(16, messages.size());
         assertInstanceOf(UserMessage.class, messages.get(0));
-        assertEquals("message-1", ((UserMessage) messages.get(0)).singleText());
+        assertEquals("message-5", ((UserMessage) messages.get(0)).singleText());
     }
 
     @Test
@@ -71,7 +71,7 @@ class ChatHistoryServiceTest {
         UUID userId = UUID.randomUUID();
         when(aiMessageRepository.findTop20ByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
-        List<ChatMessage> messages = chatHistoryService.loadRecent(userId, ChatLimits.AI_CONTEXT_MESSAGE_LIMIT);
+        List<ChatMessage> messages = chatHistoryService.loadRecent(userId, ChatLimits.AI_CONTEXT_SEED_LIMIT);
 
         assertTrue(messages.isEmpty());
         verify(aiMessageRepository, never()).save(any());
