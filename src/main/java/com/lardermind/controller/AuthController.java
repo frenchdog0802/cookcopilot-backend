@@ -1,5 +1,6 @@
 package com.lardermind.controller;
 
+import com.fasterxml.jackson.core.json.JsonWriteFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lardermind.common.ApiResponse;
 import com.lardermind.service.AuthService;
@@ -69,14 +70,19 @@ public class AuthController {
             GoogleLoginResponse data = authService.googleLogin(
                     GoogleLoginRequest.builder().token(credential).build());
 
-            String json = objectMapper.writeValueAsString(Map.of(
-                    "token", data.getToken(),
-                    "user", data.getUser()
-            ));
+            // Escape non-ASCII so Chinese names survive Base64 round-trip even if
+            // a client wrongly uses Latin-1 atob without TextDecoder.
+            String json = objectMapper.writer()
+                    .with(JsonWriteFeature.ESCAPE_NON_ASCII)
+                    .writeValueAsString(Map.of(
+                            "token", data.getToken(),
+                            "user", data.getUser()
+                    ));
             String encoded = Base64.getUrlEncoder()
                     .withoutPadding()
                     .encodeToString(json.getBytes(StandardCharsets.UTF_8));
 
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
             response.sendRedirect(base + "/#google_auth=" + encoded);
         } catch (Exception e) {
             log.warn("Google redirect callback failed: {}", e.getMessage());
