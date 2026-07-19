@@ -1,5 +1,9 @@
 package com.lardermind.service;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import com.lardermind.config.JwtUtil;
 import com.lardermind.common.GlobalExceptionHandler.*;
 import com.lardermind.dto.*;
@@ -7,8 +11,8 @@ import com.lardermind.entity.User;
 import com.lardermind.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -25,6 +29,9 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+
+    @Value("${app.google.client-id}")
+    private String googleClientId;
 
     // ── Signup ──
 
@@ -72,44 +79,44 @@ public class AuthService {
                 .build();
     }
 
-    // ── Google Login (Google Identity Services access token) ──
+    // ── Google Login (GIS ID token — signature + audience verified) ──
 
     public GoogleLoginResponse googleLogin(GoogleLoginRequest request) {
         try {
-            RestTemplate restTemplate = new RestTemplate();
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                    new NetHttpTransport(),
+                    GsonFactory.getDefaultInstance())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
 
-            @SuppressWarnings("unchecked")
-            Map<String, Object> tokenInfo = restTemplate.getForObject(
-                    "https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=" + request.getToken(),
-                    Map.class);
-
-            if (tokenInfo == null) throw new BadRequestException("Invalid Google token");
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> userInfo = restTemplate.getForObject(
-                    "https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + request.getToken(),
-                    Map.class);
-
-            if (userInfo == null) throw new BadRequestException("Failed to fetch Google user info");
-
-            String googleId = (String) userInfo.get("sub");
-            if (googleId == null) {
-                googleId = (String) tokenInfo.get("sub");
+            GoogleIdToken idToken = verifier.verify(request.getToken());
+            if (idToken == null) {
+                throw new BadRequestException("Invalid Google ID token");
             }
-            if (googleId == null) throw new BadRequestException("Invalid Google token: missing user id");
 
-            return findOrCreateByGoogleId(
-                    googleId,
-                    (String) userInfo.get("email"),
-                    (String) userInfo.getOrDefault("name", "User"),
-                    (String) userInfo.getOrDefault("given_name", "User"),
-                    (String) userInfo.getOrDefault("family_name", ""),
-                    (String) userInfo.get("picture"));
+            GoogleIdToken.Payload payload = idToken.getPayload();
+
+            if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
+                throw new BadRequestException("Google email is not verified");
+            }
+
+            String googleId = payload.getSubject();
+            if (googleId == null || googleId.isBlank()) {
+                throw new BadRequestException("Invalid Google token: missing user id");
+            }
+
+            String email = payload.getEmail();
+            String name = (String) payload.getOrDefault("name", "User");
+            String givenName = (String) payload.getOrDefault("given_name", "User");
+            String familyName = (String) payload.getOrDefault("family_name", "");
+            String picture = (String) payload.get("picture");
+
+            return findOrCreateByGoogleId(googleId, email, name, givenName, familyName, picture);
         } catch (BadRequestException e) {
             throw e;
         } catch (Exception e) {
             log.error("Google login error", e);
-            throw new BadRequestException("Authentication failed: Invalid or expired Google Access Token.");
+            throw new BadRequestException("Authentication failed: Invalid or expired Google ID token.");
         }
     }
 

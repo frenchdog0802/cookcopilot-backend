@@ -3,11 +3,19 @@ spring:
     name: LarderMind
 
   # ── PostgreSQL ──
+  # Prefer Supabase transaction pooler (port 6543). Session mode (5432) caps ~15 clients
+  # and fills up after redeploys. prepareThreshold=0 is required for PgBouncer transaction mode.
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}?sslmode=${DB_SSL_MODE:require}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:6543}/${DB_NAME}?sslmode=${DB_SSL_MODE:require}&prepareThreshold=0
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 600000
 
   jpa:
     hibernate:
@@ -23,6 +31,9 @@ spring:
 app:
   jwt-secret: ${JWT_SECRET}
   frontend-url: ${FRONTEND_URL}
+  # Must match the Web client ID used by the frontend (VITE_GOOGLE_CLIENT_ID)
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME}
     api-key: ${CLOUDINARY_API_KEY}

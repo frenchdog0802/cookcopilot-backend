@@ -31,6 +31,8 @@ langchain4j:
 app:
   jwt-secret: test-jwt-secret-key-for-unit-tests-only
   frontend-url: http://localhost:5173
+  google:
+    client-id: test-google-client-id.apps.googleusercontent.com
   cloudinary:
     cloud-name: test
     api-key: test
