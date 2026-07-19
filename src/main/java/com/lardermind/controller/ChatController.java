@@ -364,9 +364,17 @@ public class ChatController {
     private static boolean isEmitterClosed(Throwable error) {
         Throwable current = error;
         while (current != null) {
-            if (current instanceof IllegalStateException
-                    && current.getMessage() != null
-                    && current.getMessage().contains("already completed")) {
+            String name = current.getClass().getName();
+            String message = current.getMessage() != null ? current.getMessage() : "";
+            if (current instanceof IllegalStateException && message.contains("already completed")) {
+                return true;
+            }
+            // Browser navigated away, tab closed, proxy timeout, etc. while SSE was open.
+            if (name.contains("AsyncRequestNotUsableException")
+                    || name.contains("ClientAbortException")
+                    || message.contains("Broken pipe")
+                    || message.contains("Connection reset")
+                    || message.contains("disconnected client")) {
                 return true;
             }
             current = current.getCause();
