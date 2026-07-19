@@ -51,14 +51,28 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        // GIS mobile redirect posts the ID token as a top-level form POST (Origin is
+        // often accounts.google.com). That must not go through the SPA CORS allow-list.
+        CorsConfiguration googleCallback = new CorsConfiguration();
+        googleCallback.setAllowedOriginPatterns(List.of("*"));
+        googleCallback.setAllowedMethods(List.of("POST", "OPTIONS"));
+        googleCallback.setAllowedHeaders(List.of("*"));
+        googleCallback.setAllowCredentials(false);
+        source.registerCorsConfiguration("/api/auth/google-callback", googleCallback);
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 }
