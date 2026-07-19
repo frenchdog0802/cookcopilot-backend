@@ -82,6 +82,21 @@ public class AuthService {
     // ── Google Login (GIS ID token — signature + audience verified) ──
 
     public GoogleLoginResponse googleLogin(GoogleLoginRequest request) {
+        String raw = request.getToken();
+        if (raw == null || raw.isBlank()) {
+            throw new BadRequestException("Missing Google ID token");
+        }
+        String token = raw.trim();
+        // Access tokens (ya29.*) are not JWTs — verifier.parse throws IllegalArgumentException.
+        if (token.chars().filter(ch -> ch == '.').count() != 2) {
+            throw new BadRequestException(
+                    "Expected a Google ID token (JWT). Access tokens are not accepted.");
+        }
+        if (googleClientId == null || googleClientId.isBlank()) {
+            log.error("app.google.client-id / GOOGLE_CLIENT_ID is not configured");
+            throw new BadRequestException("Google login is not configured on the server");
+        }
+
         try {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                     new NetHttpTransport(),
@@ -89,7 +104,7 @@ public class AuthService {
                     .setAudience(Collections.singletonList(googleClientId))
                     .build();
 
-            GoogleIdToken idToken = verifier.verify(request.getToken());
+            GoogleIdToken idToken = verifier.verify(token);
             if (idToken == null) {
                 throw new BadRequestException("Invalid Google ID token");
             }
@@ -114,6 +129,9 @@ public class AuthService {
             return findOrCreateByGoogleId(googleId, email, name, givenName, familyName, picture);
         } catch (BadRequestException e) {
             throw e;
+        } catch (IllegalArgumentException e) {
+            log.warn("Google ID token parse failed: {}", e.getMessage());
+            throw new BadRequestException("Invalid Google ID token format");
         } catch (Exception e) {
             log.error("Google login error", e);
             throw new BadRequestException("Authentication failed: Invalid or expired Google ID token.");

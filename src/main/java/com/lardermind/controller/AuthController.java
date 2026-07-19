@@ -6,7 +6,6 @@ import com.lardermind.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import com.lardermind.dto.*;
@@ -57,11 +56,16 @@ public class AuthController {
      * Google Identity Services redirect UX posts the ID token here (mobile browsers).
      * We verify it, then send the user back to the SPA with a one-shot payload in the hash.
      */
-    @PostMapping(value = "/google-callback", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    @PostMapping("/google-callback")
     public void googleCallback(@RequestParam("credential") String credential,
                                HttpServletResponse response) throws Exception {
         String base = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
         try {
+            if (credential == null || credential.isBlank()) {
+                throw new IllegalArgumentException("Missing credential from Google");
+            }
+            log.info("Google redirect callback received (credential length={})", credential.length());
+
             GoogleLoginResponse data = authService.googleLogin(
                     GoogleLoginRequest.builder().token(credential).build());
 
